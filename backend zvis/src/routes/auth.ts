@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import bcrypt from 'bcryptjs'
 import { supabase } from '../lib/supabase'
 import { dbUserToUser, getUserByEmail } from '../lib/helpers'
 import type { AppEnv } from '../env'
@@ -18,8 +19,11 @@ auth.post('/login', async (c) => {
     return c.json({ error: 'Invalid credentials' }, 401)
   }
 
-  // Demo: any password works for seeded users
-  // In production, verify bcrypt hash here
+  const passwordMatches = await bcrypt.compare(password, user.password_hash)
+  if (!passwordMatches) {
+    return c.json({ error: 'Invalid credentials' }, 401)
+  }
+
   const token = user.id
 
   return c.json({
