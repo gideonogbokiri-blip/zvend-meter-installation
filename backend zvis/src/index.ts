@@ -2,7 +2,6 @@ import 'dotenv/config'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
-import { serve } from '@hono/node-server'
 import auth from './routes/auth'
 import facilities from './routes/facilities'
 import meters from './routes/meters'
@@ -37,8 +36,4 @@ app.onError((err, c) => {
   return c.json({ error: 'Internal server error' }, 500)
 })
 
-const port = Number(process.env.PORT) || 3000
-
-console.log(`ZVIS Backend running on http://localhost:${port}`)
-
-serve({ fetch: app.fetch, port })
+export default app
