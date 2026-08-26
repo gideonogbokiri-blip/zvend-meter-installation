@@ -2,6 +2,7 @@ import 'dotenv/config'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
+import { handle } from '@hono/node-server/vercel'
 import auth from './routes/auth'
 import facilities from './routes/facilities'
 import meters from './routes/meters'
@@ -36,4 +37,4 @@ app.onError((err, c) => {
   return c.json({ error: 'Internal server error' }, 500)
 })
 
-export default app
+export default handle(app)
