@@ -2,17 +2,6 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, homePath } from '../store/auth'
 import { api } from '../api'
-import type { Role } from '../types'
-import { ROLE_LABEL } from '../lib/status'
-import { MeterVisual } from '../components/MeterVisual'
-
-const DEMO_LOGINS: { role: Role; email: string }[] = [
-  { role: 'Secretary', email: 'amara@zvend.com' },
-  { role: 'FieldTechnician', email: 'tunde@zvend.com' },
-  { role: 'GM', email: 'grace@zvend.com' },
-  { role: 'MD', email: 'yusuf@zvend.com' },
-  { role: 'IT', email: 'chidi@zvend.com' },
-]
 
 export function Login() {
   const navigate = useNavigate()
@@ -54,7 +43,6 @@ export function Login() {
       <div className="relative w-full max-w-md">
         <div className="mb-8 flex flex-col items-center text-center text-white">
           <img src="/favicon.svg" alt="" className="mb-4 h-16 w-16 rounded-2xl shadow-2xl shadow-brand-900/50" />
-          <MeterVisual className="mb-4 h-auto w-44 drop-shadow-2xl" />
           <h1 className="text-2xl font-extrabold tracking-tight">Zvend Meter Installation System</h1>
           <p className="mt-1.5 text-sm text-slate-400">Digitized meter activation workflow</p>
         </div>
@@ -101,24 +89,6 @@ export function Login() {
             {busy ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
-
-        <div className="mt-5 rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
-          <p className="mb-3 text-center text-xs font-bold tracking-widest text-slate-400 uppercase">
-            Demo quick login
-          </p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {DEMO_LOGINS.map((d) => (
-              <button
-                key={d.role}
-                onClick={() => void doLogin(d.email, 'demo')}
-                disabled={busy}
-                className="rounded-xl bg-white/10 px-3 py-2.5 text-xs font-semibold text-white transition hover:bg-white/20 disabled:opacity-60"
-              >
-                {ROLE_LABEL[d.role]}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   )
