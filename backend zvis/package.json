@@ -1,0 +1,25 @@
+{
+  "name": "backend-zvis",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "oxlint src"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.0",
+    "@supabase/supabase-js": "^2.52.0",
+    "dotenv": "^17.4.2",
+    "hono": "^4.8.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "oxlint": "^1.75.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0"
+  }
+}
