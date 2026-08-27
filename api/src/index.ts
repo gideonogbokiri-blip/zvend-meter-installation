@@ -38,7 +38,8 @@ app.notFound((c) => {
 
 app.onError((err, c) => {
   console.error('Unhandled error:', err)
-  return c.json({ error: 'Internal server error' }, 500)
+  const message = err instanceof Error ? err.message : 'Internal server error'
+  return c.json({ error: message }, 500)
 })
 
 export default app
