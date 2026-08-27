@@ -2,7 +2,7 @@ services:
   - type: web
     name: backend-zvis
     runtime: node
-    rootDir: backend-zvis
+    rootDir: api
     buildCommand: npm install && npm run build
     startCommand: node dist/server.js
     envVars:
