@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
-import { supabase } from '../lib/supabase'
-import { authMiddleware, requireRole } from '../middleware/auth'
-import type { AppEnv } from '../env'
+import { supabase } from '../lib/supabase.js'
+import { authMiddleware, requireRole } from '../middleware/auth.js'
+import type { AppEnv } from '../env.js'
 
 const facilities = new Hono<AppEnv>()
 

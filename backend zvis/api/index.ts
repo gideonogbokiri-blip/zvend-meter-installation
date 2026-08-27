@@ -1,1 +1,4 @@
-export { default } from '../src/index'
+import { handle } from '@hono/node-server/vercel'
+import app from '../src/index.js'
+
+export default handle(app)

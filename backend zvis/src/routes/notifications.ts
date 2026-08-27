@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
-import { supabase } from '../lib/supabase'
-import { authMiddleware } from '../middleware/auth'
-import type { AppEnv } from '../env'
+import { supabase } from '../lib/supabase.js'
+import { authMiddleware } from '../middleware/auth.js'
+import type { AppEnv } from '../env.js'
 
 const notifications = new Hono<AppEnv>()
 

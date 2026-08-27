@@ -1,5 +1,5 @@
-import type { User } from '../types'
-import { supabase } from './supabase'
+import type { User } from '../types.js'
+import { supabase } from './supabase.js'
 
 const METER_NUMBER_REGEX = /^5810\d{7}$/
 

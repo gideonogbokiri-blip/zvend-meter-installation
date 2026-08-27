@@ -1,6 +1,6 @@
 import type { Next } from 'hono'
-import { supabase } from '../lib/supabase'
-import type { AppEnv } from '../env'
+import { supabase } from '../lib/supabase.js'
+import type { AppEnv } from '../env.js'
 
 // Simple token-based auth: token = user ID (for demo)
 // In production, use JWT or Supabase Auth tokens

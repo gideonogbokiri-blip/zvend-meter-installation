@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
-import { supabase } from '../lib/supabase'
-import { authMiddleware, requireRole } from '../middleware/auth'
-import { isValidMeterNumber, normalizeMeterNumber } from '../lib/helpers'
-import type { AppEnv } from '../env'
-import type { MeterStatus, Role } from '../types'
+import { supabase } from '../lib/supabase.js'
+import { authMiddleware, requireRole } from '../middleware/auth.js'
+import { isValidMeterNumber, normalizeMeterNumber } from '../lib/helpers.js'
+import type { AppEnv } from '../env.js'
+import type { MeterStatus, Role } from '../types.js'
 
 const meters = new Hono<AppEnv>()
 

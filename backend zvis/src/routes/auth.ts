@@ -1,8 +1,8 @@
 import { Hono } from 'hono'
 import bcrypt from 'bcryptjs'
-import { supabase } from '../lib/supabase'
-import { dbUserToUser, getUserByEmail } from '../lib/helpers'
-import type { AppEnv } from '../env'
+import { supabase } from '../lib/supabase.js'
+import { dbUserToUser, getUserByEmail } from '../lib/helpers.js'
+import type { AppEnv } from '../env.js'
 
 const auth = new Hono<AppEnv>()
 
