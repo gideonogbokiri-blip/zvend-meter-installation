@@ -3,6 +3,7 @@ import type {
   ZvendApi,
   LoginInput,
   LoginResult,
+  ChangePasswordInput,
   CreateFacilityInput,
   ScanNewInput,
   RejectInput,
@@ -55,6 +56,14 @@ export const clientApi: ZvendApi = {
     setAuthToken(token)
     const { data } = await http.get<User>('/api/auth/me')
     return data
+  },
+
+  async changePassword(input: ChangePasswordInput): Promise<void> {
+    const { data } = await http.post<{ message: string }>(
+      '/api/auth/change-password',
+      input
+    )
+    void data
   },
 
   async listFacilities(): Promise<Facility[]> {

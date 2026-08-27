@@ -17,6 +17,11 @@ export interface LoginResult {
   user: User
 }
 
+export interface ChangePasswordInput {
+  currentPassword: string
+  newPassword: string
+}
+
 export interface CreateFacilityInput {
   name: string
   location: string
@@ -54,6 +59,7 @@ export interface ListMetersQuery {
 export interface ZvendApi {
   login(input: LoginInput): Promise<LoginResult>
   me(token: string): Promise<User>
+  changePassword(input: ChangePasswordInput): Promise<void>
   listFacilities(): Promise<Facility[]>
   createFacility(input: CreateFacilityInput): Promise<Facility>
   listMeters(query: ListMetersQuery): Promise<MeterInstallation[]>

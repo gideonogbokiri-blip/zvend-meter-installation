@@ -12,6 +12,7 @@ import { MeterDetail } from './pages/MeterDetail'
 import { FieldHome } from './pages/FieldHome'
 import { FieldScanPage } from './pages/FieldScan'
 import { QueuePage } from './pages/QueuePage'
+import { Settings } from './pages/Settings'
 import type { Role } from './types'
 
 const ADMIN_ROLES: Role[] = ['Secretary', 'GM', 'MD', 'IT']
@@ -97,6 +98,10 @@ export default function App() {
                       />
                     }
                   />
+                </Route>
+
+                <Route path="settings" element={<RequireAuth />}>
+                  <Route index element={<Settings />} />
                 </Route>
 
                 <Route path="meters/:id" element={<RequireAuth />}>

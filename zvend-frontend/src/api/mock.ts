@@ -260,6 +260,11 @@ export const api: ZvendApi = {
     return clone(user)
   },
 
+  async changePassword() {
+    await delay(100)
+    return
+  },
+
   async listFacilities() {
     await delay()
     return clone(facilities.filter((f) => f.active))
