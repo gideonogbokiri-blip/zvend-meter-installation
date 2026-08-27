@@ -5,7 +5,6 @@ const FLOW: MeterStatus[] = [
   'PendingGM',
   'PendingMD',
   'PendingIT',
-  'PendingClosure',
 ]
 
 export function StageBar({ status, showLabel = false }: { status: MeterStatus; showLabel?: boolean }) {

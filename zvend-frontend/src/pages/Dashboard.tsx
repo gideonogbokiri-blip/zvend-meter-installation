@@ -11,7 +11,7 @@ import { useAuth } from '../store/auth'
 type Scope = 'active' | 'rejected' | 'archived'
 
 const MY_ACTION: Record<Role, MeterStatus[]> = {
-  Secretary: ['PendingSecretaryConfirm', 'PendingClosure', 'Rejected'],
+  Secretary: ['PendingSecretaryConfirm', 'Rejected'],
   FieldTechnician: [],
   GM: ['PendingGM'],
   MD: ['PendingMD'],

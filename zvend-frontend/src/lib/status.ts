@@ -28,23 +28,17 @@ export const STATUS_META: Record<
     dot: 'bg-orange-500',
     order: 4,
   },
-  PendingClosure: {
-    label: 'Pending Final Closure',
-    badge: 'bg-teal-50 text-teal-700 ring-teal-200',
-    dot: 'bg-teal-500',
-    order: 5,
-  },
   Completed: {
     label: 'Completed',
     badge: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
     dot: 'bg-emerald-500',
-    order: 6,
+    order: 5,
   },
   Rejected: {
     label: 'Rejected',
     badge: 'bg-red-50 text-red-700 ring-red-200',
     dot: 'bg-red-500',
-    order: 7,
+    order: 6,
   },
 }
 
@@ -53,7 +47,6 @@ export const ACTIVE_STATUSES: MeterStatus[] = [
   'PendingGM',
   'PendingMD',
   'PendingIT',
-  'PendingClosure',
 ]
 
 export const ROLE_LABEL: Record<Role, string> = {

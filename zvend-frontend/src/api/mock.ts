@@ -120,7 +120,7 @@ const meters: MeterInstallation[] = [
     officialMeterNumber: '58100000006',
     facilityId: 'f3',
     facilityName: 'Abuja Office',
-    status: 'PendingClosure',
+    status: 'Completed',
     scannedMeterNumber: '58100000006',
     gpsLatitude: 9.0468,
     gpsLongitude: 7.5189,
@@ -412,17 +412,8 @@ export const api: ZvendApi = {
     meter.profileConfirmed = true
     meter.itNotes = input.notes
     const user = findUser(userId)
-    const result = transition(id, 'PendingClosure', user, 'Acted on the task and recorded activation code', input.activationCode)
-    notify('u-sec', 'IT returned a completed job', `Meter ${meter.officialMeterNumber} has an activation code and awaits final closure.`, meter.id)
-    return result
-  },
-
-  async secretaryClose(id, userId) {
-    await delay()
-    const meter = meters.find((m) => m.id === id)
-    if (!meter) throw new Error('Meter not found')
-    const user = findUser(userId)
-    const result = transition(id, 'Completed', user, 'Job closed and archived', meter.activationCode)
+    const result = transition(id, 'Completed', user, `Job completed and closed. Activation code recorded: ${input.activationCode}`, input.activationCode)
+    notify(meter.createdBy, 'Job completed', `Meter ${meter.officialMeterNumber} is complete. Activation code: ${input.activationCode}`, meter.id)
     return result
   },
 

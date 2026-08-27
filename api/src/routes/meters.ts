@@ -510,7 +510,7 @@ meters.post('/:id/it-complete', authMiddleware, requireRole('IT'), async (c) => 
   const { data, error } = await supabase
     .from('meter_installations')
     .update({
-      status: 'PendingClosure',
+      status: 'Completed',
       profile_confirmed: profileConfirmed,
       activation_code: activationCode,
       it_notes: notes ?? null,
@@ -528,54 +528,19 @@ meters.post('/:id/it-complete', authMiddleware, requireRole('IT'), async (c) => 
     user.id,
     user.fullName,
     user.role,
-    `IT profiling complete. Profile confirmed: ${profileConfirmed}`,
+    `Job completed and closed. Activation code recorded: ${activationCode}`,
     notes
   )
 
-  const secretaryId = await getRoleId('Secretary')
-  if (secretaryId) {
+  // Notify the field technician who submitted the meter
+  if (meter.created_by) {
     await createNotification(
-      secretaryId,
-      'Meter ready for closure',
-      `Meter ${meter.official_meter_number} IT setup complete. Ready for final closure.`,
+      meter.created_by,
+      'Job completed',
+      `Meter ${meter.official_meter_number} is complete. Activation code: ${activationCode}`,
       id
     )
   }
-
-  return c.json(dbMeterToApi(data as DbMeter))
-})
-
-// Secretary closes the job
-meters.post('/:id/close', authMiddleware, requireRole('Secretary'), async (c) => {
-  const id = c.req.param('id')
-  const user = c.get('user')
-
-  const { data: meter, error: fetchError } = await supabase
-    .from('meter_installations')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  if (fetchError || !meter) {
-    return c.json({ error: 'Meter not found' }, 404)
-  }
-
-  if (meter.status !== 'PendingClosure') {
-    return c.json({ error: 'Meter is not pending closure' }, 400)
-  }
-
-  const { data, error } = await supabase
-    .from('meter_installations')
-    .update({ status: 'Completed' })
-    .eq('id', id)
-    .select('*, facilities(name)')
-    .single()
-
-  if (error) {
-    return c.json({ error: error.message }, 500)
-  }
-
-  await addAuditEntry(id, user.id, user.fullName, user.role, 'Job completed and closed')
 
   return c.json(dbMeterToApi(data as DbMeter))
 })

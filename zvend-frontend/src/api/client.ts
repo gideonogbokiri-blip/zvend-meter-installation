@@ -164,16 +164,6 @@ export const clientApi: ZvendApi = {
     return data
   },
 
-  async secretaryClose(
-    id: string,
-    _userId: string
-  ): Promise<MeterInstallation> {
-    const { data } = await http.post<MeterInstallation>(
-      `/api/meters/${id}/close`
-    )
-    return data
-  },
-
   async resendToGM(
     id: string,
     _userId: string

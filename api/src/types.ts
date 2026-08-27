@@ -6,7 +6,6 @@ export const STATUSES = [
   'PendingGM',
   'PendingMD',
   'PendingIT',
-  'PendingClosure',
   'Completed',
   'Rejected',
 ] as const

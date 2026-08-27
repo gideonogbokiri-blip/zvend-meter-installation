@@ -141,7 +141,7 @@ export function MeterDetail() {
     }
     await runAction(
       'itcomplete',
-      'Activation code recorded',
+      'Job completed',
       () => api.itComplete(meter.id, { profileConfirmed: itProfiled, activationCode, notes: itNotes }, user.id),
     )
     setItOpen(false)
@@ -197,21 +197,6 @@ export function MeterDetail() {
             className="btn-primary mt-3 w-full"
           >
             {busy === 'confirm' ? 'Sending…' : 'Confirm Field Data & Send to GM'}
-          </button>
-        </ActionPanel>
-      )}
-
-      {role === 'Secretary' && meter.status === 'PendingClosure' && (
-        <ActionPanel tone="teal">
-          <p className="text-sm font-semibold text-teal-900">
-            IT has recorded an activation code. Review and close the job.
-          </p>
-          <button
-            onClick={() => void runAction('close', 'Job closed and archived', () => api.secretaryClose(meter.id, user.id))}
-            disabled={busy !== null}
-            className="btn-success mt-3 w-full"
-          >
-            {busy === 'close' ? 'Closing…' : 'Confirm & Close Job'}
           </button>
         </ActionPanel>
       )}
@@ -282,7 +267,7 @@ export function MeterDetail() {
       {role === 'IT' && meter.status === 'PendingIT' && (
         <ActionPanel tone="orange">
           <p className="text-sm font-semibold text-orange-900">
-            Job approved. Review the customer profiling information, carry out the technical work, then record the activation code from the activation platform.
+            This is the final step. Review the customer profiling information, carry out the technical work, then record the activation code. The job is completed when you save it.
           </p>
           <button
             onClick={() => {
@@ -419,7 +404,7 @@ export function MeterDetail() {
           </label>
 
           <button onClick={() => void submitItComplete()} disabled={busy !== null} className="btn-primary w-full bg-orange-600 shadow-orange-600/20 hover:bg-orange-700">
-            {busy === 'itcomplete' ? 'Saving…' : 'Save Code & Complete Task'}
+            {busy === 'itcomplete' ? 'Saving…' : 'Save Code & Complete Job'}
           </button>
         </div>
       </Modal>
