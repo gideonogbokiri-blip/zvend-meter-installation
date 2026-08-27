@@ -17,7 +17,11 @@ import type {
   User,
 } from '../types'
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD
+    ? 'https://zvend-meter-installation.onrender.com'
+    : 'http://localhost:3000')
 
 const http = axios.create({
   baseURL: BASE_URL,
