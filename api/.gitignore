@@ -3,3 +3,9 @@ dist
 .env
 .env.local
 *.log
+test-workflow.cjs
+debug-records.cjs
+cleanup.cjs
+
+*.cjs
+
