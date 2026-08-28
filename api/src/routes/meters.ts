@@ -21,6 +21,9 @@ interface DbMeter {
   customer_name: string | null
   customer_phone: string | null
   activation_code: string | null
+  clear_code: string | null
+  tamper_code: string | null
+  completed_at: string | null
   profile_confirmed: boolean | null
   it_notes: string | null
   rejection_reason: string | null
@@ -46,6 +49,9 @@ function dbMeterToApi(m: DbMeter) {
     customerName: m.customer_name ?? undefined,
     customerPhone: m.customer_phone ?? undefined,
     activationCode: m.activation_code ?? undefined,
+    clearCode: m.clear_code ?? undefined,
+    tamperCode: m.tamper_code ?? undefined,
+    completedAt: m.completed_at ?? undefined,
     profileConfirmed: m.profile_confirmed ?? undefined,
     itNotes: m.it_notes ?? undefined,
     rejectionReason: m.rejection_reason ?? undefined,
@@ -478,19 +484,21 @@ meters.post('/:id/md-reject', authMiddleware, requireRole('MD'), async (c) => {
   return c.json(dbMeterToApi(data as DbMeter))
 })
 
-// IT completes (profiling + activation code)
+// IT completes (profiling + activation/clear/tamper codes)
 meters.post('/:id/it-complete', authMiddleware, requireRole('IT'), async (c) => {
   const id = c.req.param('id')
   const user = c.get('user')
   const body = await c.req.json()
-  const { profileConfirmed, activationCode, notes } = body as {
+  const { profileConfirmed, activationCode, clearCode, tamperCode, notes } = body as {
     profileConfirmed: boolean
-    activationCode: string
+    activationCode?: string
+    clearCode?: string
+    tamperCode?: string
     notes?: string
   }
 
-  if (!activationCode) {
-    return c.json({ error: 'Activation code required' }, 400)
+  if (!activationCode && !clearCode && !tamperCode) {
+    return c.json({ error: 'At least one code (activation, clear or tamper) is required' }, 400)
   }
 
   const { data: meter, error: fetchError } = await supabase
@@ -507,12 +515,17 @@ meters.post('/:id/it-complete', authMiddleware, requireRole('IT'), async (c) => 
     return c.json({ error: 'Meter is not pending IT setup' }, 400)
   }
 
+  const codesRecorded = [activationCode, clearCode, tamperCode].filter(Boolean).join(', ')
+
   const { data, error } = await supabase
     .from('meter_installations')
     .update({
       status: 'Completed',
+      completed_at: new Date().toISOString(),
       profile_confirmed: profileConfirmed,
-      activation_code: activationCode,
+      activation_code: activationCode ?? null,
+      clear_code: clearCode ?? null,
+      tamper_code: tamperCode ?? null,
       it_notes: notes ?? null,
     })
     .eq('id', id)
@@ -528,7 +541,7 @@ meters.post('/:id/it-complete', authMiddleware, requireRole('IT'), async (c) => 
     user.id,
     user.fullName,
     user.role,
-    `Job completed and closed. Activation code recorded: ${activationCode}`,
+    `Job completed and closed. Codes recorded: ${codesRecorded}`,
     notes
   )
 
@@ -537,7 +550,7 @@ meters.post('/:id/it-complete', authMiddleware, requireRole('IT'), async (c) => 
     await createNotification(
       meter.created_by,
       'Job completed',
-      `Meter ${meter.official_meter_number} is complete. Activation code: ${activationCode}`,
+      `Meter ${meter.official_meter_number} is complete. Codes: ${codesRecorded}`,
       id
     )
   }

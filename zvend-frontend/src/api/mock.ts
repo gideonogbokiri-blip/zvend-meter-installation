@@ -2,6 +2,7 @@ import type { ZvendApi } from './contract'
 import type {
   AppNotification,
   AuditEntry,
+  DailyRecord,
   Facility,
   MeterInstallation,
   MeterStatus,
@@ -16,6 +17,10 @@ const uid = (prefix: string) => `${prefix}-${++seq}`
 const delay = (ms = 250) => new Promise((r) => setTimeout(r, ms))
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v))
+
+let mockSessionUserId = 'u-sec'
+
+const dailyRecords: DailyRecord[] = []
 
 const users: User[] = [
   { id: 'u-sec', fullName: 'Amara Okafor', role: 'Secretary', email: 'amara@zvend.com', phone: '0801 000 1111' },
@@ -130,11 +135,13 @@ const meters: MeterInstallation[] = [
     customerName: 'Segun Ajayi',
     customerPhone: '0809 876 5015',
     activationCode: '4K8F-2M7Q',
+    clearCode: '4K8F-2M7Q',
     profileConfirmed: true,
     itNotes: 'Profiled on ST-12 grid, relay ok.',
     createdBy: 'u-tech',
     createdAt: daysAgo(12),
     updatedAt: daysAgo(0, 2),
+    completedAt: daysAgo(0, 2),
   },
   {
     id: 'm7',
@@ -151,10 +158,12 @@ const meters: MeterInstallation[] = [
     customerName: 'Fatima Bello',
     customerPhone: '0706 345 1206',
     activationCode: '7P2T-9W4R',
+    clearCode: '7P2T-9W4R',
     profileConfirmed: true,
     createdBy: 'u-tech',
     createdAt: daysAgo(20),
     updatedAt: daysAgo(5),
+    completedAt: daysAgo(5),
   },
   {
     id: 'm8',
@@ -249,6 +258,7 @@ export const api: ZvendApi = {
     await delay()
     const user = users.find((u) => u.email.toLowerCase() === input.email.trim().toLowerCase())
     if (!user || !input.password) throw new Error('Invalid email or password')
+    mockSessionUserId = user.id
     return { token: `mock-${user.id}`, user: clone(user) }
   },
 
@@ -263,6 +273,14 @@ export const api: ZvendApi = {
   async changePassword() {
     await delay(100)
     return
+  },
+
+  async updateProfile(input) {
+    await delay()
+    const target = users.find((u) => u.id === mockSessionUserId) ?? users[0]
+    if (input.fullName !== undefined) target.fullName = input.fullName
+    if (input.phone !== undefined) target.phone = input.phone
+    return clone(target)
   },
 
   async listFacilities() {
@@ -407,13 +425,20 @@ export const api: ZvendApi = {
     const meter = meters.find((m) => m.id === id)
     if (!meter) throw new Error('Meter not found')
     if (!input.profileConfirmed) throw new Error('Confirm that you have acted on the task before recording the code')
-    if (!input.activationCode.trim()) throw new Error('An activation code is required')
-    meter.activationCode = input.activationCode
+    if (!input.activationCode && !input.clearCode && !input.tamperCode) {
+      throw new Error('At least one code (activation, clear or tamper) is required')
+    }
+    if (input.activationCode) meter.activationCode = input.activationCode
+    if (input.clearCode) meter.clearCode = input.clearCode
+    if (input.tamperCode) meter.tamperCode = input.tamperCode
+    if (!meter.activationCode && input.clearCode) meter.activationCode = input.clearCode
     meter.profileConfirmed = true
     meter.itNotes = input.notes
+    meter.completedAt = now()
+    const codes = [input.activationCode, input.clearCode, input.tamperCode].filter(Boolean).join(', ')
     const user = findUser(userId)
-    const result = transition(id, 'Completed', user, `Job completed and closed. Activation code recorded: ${input.activationCode}`, input.activationCode)
-    notify(meter.createdBy, 'Job completed', `Meter ${meter.officialMeterNumber} is complete. Activation code: ${input.activationCode}`, meter.id)
+    const result = transition(id, 'Completed', user, `Job completed and closed. Codes recorded: ${codes}`, codes)
+    notify(meter.createdBy, 'Job completed', `Meter ${meter.officialMeterNumber} is complete. Codes: ${codes}`, meter.id)
     return result
   },
 
@@ -440,5 +465,52 @@ export const api: ZvendApi = {
   async markNotificationRead(id) {
     const n = notifications.find((x) => x.id === id)
     if (n) n.read = true
+  },
+
+  async listDailyRecords() {
+    await delay(100)
+    return clone(dailyRecords)
+  },
+
+  async createDailyRecord(date) {
+    await delay()
+    const recordDate = date ?? new Date().toISOString().slice(0, 10)
+    const snapshot = meters
+      .filter(
+        (m) =>
+          m.status === 'Completed' &&
+          m.completedAt &&
+          m.completedAt.slice(0, 10) === recordDate,
+      )
+      .map((m) => ({
+        id: m.id,
+        official_meter_number: m.officialMeterNumber,
+        facility_name: m.facilityName,
+        customer_name: m.customerName,
+        customer_phone: m.customerPhone,
+        installation_address: m.installationAddress,
+        field_technician_name: m.fieldTechnicianName,
+        activation_code: m.activationCode,
+        clear_code: m.clearCode,
+        tamper_code: m.tamperCode,
+        completed_at: m.completedAt,
+      }))
+    const existing = dailyRecords.find((r) => r.recordDate === recordDate)
+    if (existing) {
+      existing.meters = snapshot
+      existing.updatedAt = now()
+      return clone(existing)
+    }
+    const record: DailyRecord = {
+      id: uid('r'),
+      recordDate,
+      meters: snapshot,
+      createdBy: mockSessionUserId,
+      createdByName: findUser(mockSessionUserId).fullName,
+      createdAt: now(),
+      updatedAt: now(),
+    }
+    dailyRecords.unshift(record)
+    return clone(record)
   },
 }

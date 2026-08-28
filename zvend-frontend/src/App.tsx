@@ -13,6 +13,7 @@ import { FieldHome } from './pages/FieldHome'
 import { FieldScanPage } from './pages/FieldScan'
 import { QueuePage } from './pages/QueuePage'
 import { Settings } from './pages/Settings'
+import { DailyRecords } from './pages/DailyRecords'
 import type { Role } from './types'
 
 const ADMIN_ROLES: Role[] = ['Secretary', 'GM', 'MD', 'IT']
@@ -94,7 +95,7 @@ export default function App() {
                       <QueuePage
                         status="PendingIT"
                         title="IT Queue"
-                        subtitle="Review customer profiling, carry out the task, and record the activation code."
+                        subtitle="Review customer profiling, carry out the task, and record the activation, clear or tamper codes."
                       />
                     }
                   />
@@ -102,6 +103,10 @@ export default function App() {
 
                 <Route path="settings" element={<RequireAuth />}>
                   <Route index element={<Settings />} />
+                </Route>
+
+                <Route path="records" element={<RequireRole roles={['Secretary', 'MD']} />}>
+                  <Route index element={<DailyRecords />} />
                 </Route>
 
                 <Route path="meters/:id" element={<RequireAuth />}>

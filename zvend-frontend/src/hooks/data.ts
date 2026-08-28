@@ -8,6 +8,7 @@ export const qk = {
   meter: (id: string) => ['meter', id] as const,
   audit: (id: string) => ['audit', id] as const,
   notifications: (userId: string) => ['notifications', userId] as const,
+  dailyRecords: ['daily-records'] as const,
 }
 
 export function useFacilities() {
@@ -45,6 +46,17 @@ export function useNotifications(userId: string | undefined) {
     enabled: !!userId,
     refetchInterval: 30_000,
   })
+}
+
+export function useDailyRecords() {
+  return useQuery({
+    queryKey: qk.dailyRecords,
+    queryFn: () => api.listDailyRecords(),
+  })
+}
+
+export function invalidateDailyRecords(client: ReturnType<typeof useQueryClient>) {
+  client.invalidateQueries({ queryKey: qk.dailyRecords })
 }
 
 export function invalidateMeter(client: ReturnType<typeof useQueryClient>, id?: string) {

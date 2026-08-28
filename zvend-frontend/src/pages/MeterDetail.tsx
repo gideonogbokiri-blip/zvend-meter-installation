@@ -74,6 +74,8 @@ export function MeterDetail() {
   const [itProfiled, setItProfiled] = useState(false)
   const [itNotes, setItNotes] = useState('')
   const [activationCode, setActivationCode] = useState('')
+  const [clearCode, setClearCode] = useState('')
+  const [tamperCode, setTamperCode] = useState('')
 
   const runAction = async (key: string, success: string, fn: () => Promise<unknown>) => {
     setBusy(key)
@@ -135,14 +137,14 @@ export function MeterDetail() {
       toast.error('Confirm action', 'Tick the box confirming you have acted on the task.')
       return
     }
-    if (!activationCode.trim()) {
-      toast.error('Code required', 'Paste the activation code from the activation platform.')
+    if (!activationCode.trim() && !clearCode.trim() && !tamperCode.trim()) {
+      toast.error('Code required', 'Enter the activation, clear or tamper code from the activation platform.')
       return
     }
     await runAction(
       'itcomplete',
       'Job completed',
-      () => api.itComplete(meter.id, { profileConfirmed: itProfiled, activationCode, notes: itNotes }, user.id),
+      () => api.itComplete(meter.id, { profileConfirmed: itProfiled, activationCode, clearCode, tamperCode, notes: itNotes }, user.id),
     )
     setItOpen(false)
   }
@@ -274,6 +276,8 @@ export function MeterDetail() {
               setItProfiled(false)
               setItNotes('')
               setActivationCode('')
+              setClearCode('')
+              setTamperCode('')
               setItOpen(true)
             }}
             disabled={busy !== null}
@@ -316,16 +320,45 @@ export function MeterDetail() {
         </FieldGrid>
       </section>
 
-      {meter.activationCode && (
+      {(meter.activationCode || meter.clearCode || meter.tamperCode) && (
         <section className="animate-fade-in-up relative overflow-hidden rounded-3xl bg-gradient-to-br from-teal-600 to-teal-900 p-6 text-white shadow-lg shadow-teal-900/20">
           <div className="pointer-events-none absolute -top-14 -right-14 h-48 w-48 rounded-full bg-white/10 blur-2xl" />
           <div className="relative">
-            <p className="text-xs font-bold tracking-widest text-teal-200 uppercase">Activation code</p>
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-              <p className="font-mono text-3xl font-extrabold tracking-widest">{meter.activationCode}</p>
-              <CopyButton text={meter.activationCode} />
+            <p className="text-xs font-bold tracking-widest text-teal-200 uppercase">Meter codes</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              {meter.activationCode && (
+                <div className="rounded-2xl bg-white/10 p-3.5 backdrop-blur">
+                  <p className="text-[10px] font-bold tracking-widest text-teal-200 uppercase">Activation code</p>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <p className="font-mono text-lg font-extrabold tracking-widest break-all">{meter.activationCode}</p>
+                    <CopyButton text={meter.activationCode} />
+                  </div>
+                </div>
+              )}
+              {meter.clearCode && (
+                <div className="rounded-2xl bg-white/10 p-3.5 backdrop-blur">
+                  <p className="text-[10px] font-bold tracking-widest text-teal-200 uppercase">Clear code</p>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <p className="font-mono text-lg font-extrabold tracking-widest break-all">{meter.clearCode}</p>
+                    <CopyButton text={meter.clearCode} />
+                  </div>
+                </div>
+              )}
+              {meter.tamperCode && (
+                <div className="rounded-2xl bg-white/10 p-3.5 backdrop-blur">
+                  <p className="text-[10px] font-bold tracking-widest text-teal-200 uppercase">Tamper code</p>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <p className="font-mono text-lg font-extrabold tracking-widest break-all">{meter.tamperCode}</p>
+                    <CopyButton text={meter.tamperCode} />
+                  </div>
+                </div>
+              )}
             </div>
-            <p className="mt-2 text-xs text-teal-200">Permanently linked to {meter.officialMeterNumber}.</p>
+            <p className="mt-3 text-xs text-teal-200">
+              {meter.activationCode
+                ? `Permanently linked to ${meter.officialMeterNumber}.`
+                : `Codes recorded by IT for ${meter.officialMeterNumber}.`}
+            </p>
           </div>
         </section>
       )}
@@ -379,18 +412,42 @@ export function MeterDetail() {
           </div>
 
           <label className="block">
-            <span className="label">Activation code</span>
+            <span className="label">Activation code (optional if you enter clear/tamper code)</span>
             <input
               value={activationCode}
               onChange={(e) => setActivationCode(e.target.value)}
-              placeholder="Paste code from the activation platform…"
+              placeholder="Paste activation code…"
               className="input font-mono tracking-widest"
               autoComplete="off"
             />
-            <span className="mt-1.5 block text-xs text-slate-400">
-              The code is generated by the separate activation system — type or paste it here. It will be permanently linked to this meter.
-            </span>
           </label>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="label">Clear code</span>
+              <input
+                value={clearCode}
+                onChange={(e) => setClearCode(e.target.value)}
+                placeholder="Enter clear code…"
+                className="input font-mono tracking-widest"
+                autoComplete="off"
+              />
+            </label>
+            <label className="block">
+              <span className="label">Tamper code</span>
+              <input
+                value={tamperCode}
+                onChange={(e) => setTamperCode(e.target.value)}
+                placeholder="Enter tamper code…"
+                className="input font-mono tracking-widest"
+                autoComplete="off"
+              />
+            </label>
+          </div>
+
+          <p className="text-xs text-slate-400">
+            Fill at least one code. You can enter just the clear code or just the tamper code and leave the other empty. The codes are generated by the separate activation system and will be linked to this meter for the field team, secretary and IT to see.
+          </p>
 
           <label className="block">
             <span className="label">Internal notes (optional)</span>

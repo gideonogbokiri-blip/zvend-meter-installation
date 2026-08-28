@@ -52,6 +52,37 @@ auth.get('/me', async (c) => {
   return c.json(dbUserToUser(user))
 })
 
+// Update own profile (name, phone)
+auth.patch('/profile', authMiddleware, async (c) => {
+  const userId = c.get('userId')
+  const body = await c.req.json()
+  const { fullName, phone } = body as { fullName?: string; phone?: string }
+
+  if (fullName !== undefined && typeof fullName !== 'string') {
+    return c.json({ error: 'Name must be a string' }, 400)
+  }
+  if (phone !== undefined && typeof phone !== 'string') {
+    return c.json({ error: 'Phone must be a string' }, 400)
+  }
+
+  const updates: Record<string, string | null> = {}
+  if (fullName !== undefined) updates.full_name = fullName.trim()
+  if (phone !== undefined) updates.phone = phone.trim() || null
+
+  const { data, error } = await supabase
+    .from('users')
+    .update(updates)
+    .eq('id', userId)
+    .select('id, full_name, email, phone, role')
+    .single()
+
+  if (error) {
+    return c.json({ error: error.message }, 500)
+  }
+
+  return c.json(dbUserToUser(data))
+})
+
 // Change own password
 auth.post('/change-password', authMiddleware, async (c) => {
   const user = c.get('user')

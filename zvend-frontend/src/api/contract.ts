@@ -1,6 +1,7 @@
 import type {
   AppNotification,
   AuditEntry,
+  DailyRecord,
   Facility,
   MeterInstallation,
   MeterStatus,
@@ -20,6 +21,11 @@ export interface LoginResult {
 export interface ChangePasswordInput {
   currentPassword: string
   newPassword: string
+}
+
+export interface UpdateProfileInput {
+  fullName?: string
+  phone?: string
 }
 
 export interface CreateFacilityInput {
@@ -46,7 +52,9 @@ export interface RejectInput {
 
 export interface ItCompleteInput {
   profileConfirmed: boolean
-  activationCode: string
+  activationCode?: string
+  clearCode?: string
+  tamperCode?: string
   notes?: string
 }
 
@@ -60,6 +68,7 @@ export interface ZvendApi {
   login(input: LoginInput): Promise<LoginResult>
   me(token: string): Promise<User>
   changePassword(input: ChangePasswordInput): Promise<void>
+  updateProfile(input: UpdateProfileInput): Promise<User>
   listFacilities(): Promise<Facility[]>
   createFacility(input: CreateFacilityInput): Promise<Facility>
   listMeters(query: ListMetersQuery): Promise<MeterInstallation[]>
@@ -75,4 +84,6 @@ export interface ZvendApi {
   listAudit(meterId: string): Promise<AuditEntry[]>
   listNotifications(userId: string): Promise<AppNotification[]>
   markNotificationRead(id: string): Promise<void>
+  listDailyRecords(): Promise<DailyRecord[]>
+  createDailyRecord(date?: string): Promise<DailyRecord>
 }

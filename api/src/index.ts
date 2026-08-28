@@ -7,6 +7,7 @@ import facilities from './routes/facilities.js'
 import meters from './routes/meters.js'
 import audit from './routes/audit.js'
 import notifications from './routes/notifications.js'
+import records from './routes/records.js'
 
 const app = new Hono()
 
@@ -31,6 +32,7 @@ app.route('/api/facilities', facilities)
 app.route('/api/meters', meters)
 app.route('/api/audit', audit)
 app.route('/api/notifications', notifications)
+app.route('/api/records', records)
 
 app.notFound((c) => {
   return c.json({ error: 'Not found' }, 404)

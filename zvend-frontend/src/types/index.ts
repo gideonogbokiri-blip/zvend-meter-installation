@@ -41,12 +41,39 @@ export interface MeterInstallation {
   customerName?: string
   customerPhone?: string
   activationCode?: string
+  clearCode?: string
+  tamperCode?: string
+  completedAt?: string
   createdBy: string
   createdAt: string
   updatedAt: string
   rejectionReason?: string
   itNotes?: string
   profileConfirmed?: boolean
+}
+
+export interface RecordedMeter {
+  id: string
+  official_meter_number: string
+  facility_name?: string
+  customer_name?: string
+  customer_phone?: string
+  installation_address?: string
+  field_technician_name?: string
+  activation_code?: string
+  clear_code?: string
+  tamper_code?: string
+  completed_at?: string
+}
+
+export interface DailyRecord {
+  id: string
+  recordDate: string
+  meters: RecordedMeter[]
+  createdBy?: string
+  createdByName?: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface AuditEntry {

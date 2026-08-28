@@ -4,6 +4,7 @@ import type {
   LoginInput,
   LoginResult,
   ChangePasswordInput,
+  UpdateProfileInput,
   CreateFacilityInput,
   ScanNewInput,
   RejectInput,
@@ -13,6 +14,7 @@ import type {
 import type {
   AppNotification,
   AuditEntry,
+  DailyRecord,
   Facility,
   MeterInstallation,
   User,
@@ -64,6 +66,11 @@ export const clientApi: ZvendApi = {
       input
     )
     void data
+  },
+
+  async updateProfile(input: UpdateProfileInput): Promise<User> {
+    const { data } = await http.patch<User>('/api/auth/profile', input)
+    return data
   },
 
   async listFacilities(): Promise<Facility[]> {
@@ -188,5 +195,15 @@ export const clientApi: ZvendApi = {
 
   async markNotificationRead(id: string): Promise<void> {
     await http.patch(`/api/notifications/${id}/read`)
+  },
+
+  async listDailyRecords(): Promise<DailyRecord[]> {
+    const { data } = await http.get<DailyRecord[]>('/api/records')
+    return data
+  },
+
+  async createDailyRecord(date?: string): Promise<DailyRecord> {
+    const { data } = await http.post<DailyRecord>('/api/records', { date })
+    return data
   },
 }

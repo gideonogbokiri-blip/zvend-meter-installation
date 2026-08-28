@@ -9,6 +9,7 @@ interface AuthState {
   user: User | null
   login: (email: string, password: string) => Promise<void>
   logout: () => void
+  setUser: (user: User) => void
 }
 
 export const useAuth = create<AuthState>()(
@@ -22,6 +23,9 @@ export const useAuth = create<AuthState>()(
       },
       logout() {
         set({ token: null, user: null })
+      },
+      setUser(user) {
+        set({ user })
       },
     }),
     { name: 'zvend-auth' },
