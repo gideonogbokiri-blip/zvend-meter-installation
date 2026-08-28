@@ -12,16 +12,38 @@ interface DbDailyRecord {
   created_by: string | null
   created_at: string
   updated_at: string
-  users?: { full_name: string } | null
 }
 
-function dbRecordToApi(r: DbDailyRecord) {
+async function attachCreatedByName(
+  rows: DbDailyRecord[]
+): Promise<{ id: string; record_date: string; meters: unknown[] | null; created_by: string | null; created_at: string; updated_at: string; created_by_name: string | null }[]> {
+  const userIds = [...new Set(rows.map((r) => r.created_by).filter(Boolean))]
+  let names: Record<string, string> = {}
+  if (userIds.length > 0) {
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, full_name')
+      .in('id', userIds as string[])
+    names = Object.fromEntries((users ?? []).map((u) => [u.id, u.full_name]))
+  }
+  return rows.map((r) => ({
+    id: r.id,
+    record_date: r.record_date,
+    meters: r.meters ?? [],
+    created_by: r.created_by ?? null,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+    created_by_name: r.created_by ? (names[r.created_by] ?? null) : null,
+  }))
+}
+
+function dbRecordToApi(r: Awaited<ReturnType<typeof attachCreatedByName>>[number]) {
   return {
     id: r.id,
     recordDate: r.record_date,
-    meters: (r.meters ?? []) as unknown[],
+    meters: r.meters as unknown[],
     createdBy: r.created_by ?? undefined,
-    createdByName: r.users?.full_name ?? undefined,
+    createdByName: r.created_by_name ?? undefined,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   }
@@ -31,14 +53,15 @@ function dbRecordToApi(r: DbDailyRecord) {
 records.get('/', authMiddleware, async (c) => {
   const { data, error } = await supabase
     .from('daily_records')
-    .select('*, users(full_name)')
+    .select('*')
     .order('record_date', { ascending: false })
 
   if (error) {
     return c.json({ error: error.message }, 500)
   }
 
-  return c.json((data as DbDailyRecord[]).map(dbRecordToApi))
+  const rows = await attachCreatedByName(data as DbDailyRecord[])
+  return c.json(rows.map(dbRecordToApi))
 })
 
 // Get a single daily record
@@ -47,7 +70,7 @@ records.get('/:id', authMiddleware, async (c) => {
 
   const { data, error } = await supabase
     .from('daily_records')
-    .select('*, users(full_name)')
+    .select('*')
     .eq('id', id)
     .single()
 
@@ -55,7 +78,8 @@ records.get('/:id', authMiddleware, async (c) => {
     return c.json({ error: 'Daily record not found' }, 404)
   }
 
-  return c.json(dbRecordToApi(data as DbDailyRecord))
+  const rows = await attachCreatedByName([data as DbDailyRecord])
+  return c.json(dbRecordToApi(rows[0]))
 })
 
 // Save/create a daily record (Secretary only)
@@ -111,14 +135,15 @@ records.post('/', authMiddleware, requireRole('Secretary'), async (c) => {
       { record_date: recordDate, meters: JSON.stringify(snapshot), created_by: user.id },
       { onConflict: 'record_date' }
     )
-    .select('*, users(full_name)')
+    .select()
     .single()
 
   if (error) {
     return c.json({ error: error.message }, 500)
   }
 
-  return c.json(dbRecordToApi(data as DbDailyRecord))
+  const rows = await attachCreatedByName([data as DbDailyRecord])
+  return c.json(dbRecordToApi(rows[0]))
 })
 
 export default records
