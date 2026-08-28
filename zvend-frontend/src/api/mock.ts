@@ -49,6 +49,26 @@ const daysAgo = (d: number, h = 0, m = 0) => {
 
 const meters: MeterInstallation[] = [
   {
+    id: 'm0',
+    officialMeterNumber: '58100000000',
+    facilityId: '',
+    facilityName: '',
+    status: 'Inventory',
+    createdBy: 'u-sec',
+    createdAt: daysAgo(1),
+    updatedAt: daysAgo(1),
+  },
+  {
+    id: 'm1',
+    officialMeterNumber: '58100000001',
+    facilityId: '',
+    facilityName: '',
+    status: 'Approved',
+    createdBy: 'u-sec',
+    createdAt: daysAgo(1),
+    updatedAt: daysAgo(0, 20),
+  },
+  {
     id: 'm2',
     officialMeterNumber: '58100000002',
     facilityId: 'f1',
@@ -321,49 +341,96 @@ export const api: ZvendApi = {
     return clone(meter)
   },
 
-  async submitScanNew(input, userId) {
+  async addToInventory(input, userId) {
     await delay()
+    const created: MeterInstallation[] = []
+    const errors: { meterNumber: string; error: string }[] = []
+    const seen = new Set<string>()
+    for (const raw of input.meterNumbers) {
+      const number = normalizeMeterNumber(raw)
+      if (!METER_NUMBER_PATTERN.test(number)) {
+        errors.push({ meterNumber: raw, error: 'Invalid meter number. Must be 11 digits starting with 5810.' })
+        continue
+      }
+      if (seen.has(number) || meters.some((m) => m.officialMeterNumber === number)) {
+        errors.push({ meterNumber: raw, error: 'Meter number already registered' })
+        continue
+      }
+      seen.add(number)
+      const meter: MeterInstallation = {
+        id: uid('m'),
+        officialMeterNumber: number,
+        facilityId: '',
+        facilityName: '',
+        status: 'Inventory',
+        createdBy: userId,
+        createdAt: now(),
+        updatedAt: now(),
+      }
+      meters.unshift(meter)
+      created.push(clone(meter))
+    }
+    if (created.length > 0) {
+      audits.unshift({
+        id: uid('a'),
+        meterActivationId: created[0].id,
+        userId,
+        userName: findUser(userId).fullName,
+        userRole: findUser(userId).role,
+        action: `Added ${created.length} meter number(s) to inventory`,
+        timestamp: now(),
+      })
+      notify('u-gm', 'New meters in inventory', `Secretary added ${created.length} meter number(s). Approve them so field technicians can start work.`)
+    }
+    return { created, errors }
+  },
+
+  async approveInventory(id, userId) {
+    await delay()
+    const meter = meters.find((m) => m.id === id)
+    if (!meter) throw new Error('Meter not found')
+    if (meter.status !== 'Inventory') throw new Error('Meter is not in pending inventory')
+    const user = findUser(userId)
+    const result = transition(id, 'Approved', user, 'Approved meter from inventory')
+    notify('u-tech', 'Meter approved for work', `Meter ${meter.officialMeterNumber} was approved by the GM. Open it to start installation.`, meter.id)
+    return result
+  },
+
+  async claimMeter(id, userId) {
+    await delay()
+    const meter = meters.find((m) => m.id === id)
+    if (!meter) throw new Error('Meter not found')
+    if (meter.status !== 'Approved') throw new Error('Only approved inventory meters can be claimed')
+    const user = findUser(userId)
+    meter.fieldTechnicianName = user.fullName
+    const result = transition(id, 'Assigned', user, `Claimed inventory meter ${meter.officialMeterNumber}`)
+    notify('u-sec', 'Meter claimed by field tech', `${user.fullName} claimed meter ${meter.officialMeterNumber} and is doing the field work.`, meter.id)
+    return result
+  },
+
+  async submitFieldInstall(id, input, userId) {
+    await delay()
+    const meter = meters.find((m) => m.id === id)
+    if (!meter) throw new Error('Meter not found')
+    if (meter.status !== 'Assigned') throw new Error('Meter is not assigned to a field technician')
+    const user = findUser(userId)
+    if (meter.fieldTechnicianName !== user.fullName) throw new Error('This meter is assigned to another technician')
     const number = normalizeMeterNumber(input.scannedMeterNumber)
-    if (!METER_NUMBER_PATTERN.test(number)) {
-      throw new Error('Invalid barcode. Meter number must be 11 digits starting with 5810.')
-    }
-    if (meters.some((m) => m.officialMeterNumber === number)) {
-      throw new Error('A meter with this number is already registered')
-    }
+    if (number !== meter.officialMeterNumber) throw new Error('Scanned number does not match the assigned inventory meter')
     const facility = facilities.find((f) => f.id === input.facilityId)
     if (!facility) throw new Error('Select a valid facility')
-    const meter: MeterInstallation = {
-      id: uid('m'),
-      officialMeterNumber: number,
-      scannedMeterNumber: number,
-      facilityId: input.facilityId,
-      facilityName: facility.name,
-      status: 'PendingSecretaryConfirm',
-      gpsLatitude: input.gpsLatitude,
-      gpsLongitude: input.gpsLongitude,
-      gpsAccuracy: input.gpsAccuracy,
-      installationAddress: input.installationAddress,
-      fieldTechnicianName: input.fieldTechnicianName,
-      customerName: input.customerName,
-      customerPhone: input.customerPhone,
-      createdBy: userId,
-      createdAt: now(),
-      updatedAt: now(),
-    }
-    meters.unshift(meter)
-    const user = findUser(userId)
-    audits.unshift({
-      id: uid('a'),
-      meterActivationId: meter.id,
-      userId,
-      userName: user.fullName,
-      userRole: user.role,
-      action: 'Meter registered from field scan',
-      timestamp: now(),
-      notes: `GPS captured at ${input.gpsLatitude.toFixed(4)}, ${input.gpsLongitude.toFixed(4)}`,
-    })
-    notify('u-sec', 'Field data awaiting confirmation', `Meter ${meter.officialMeterNumber} was registered by ${input.fieldTechnicianName} and needs your confirmation.`, meter.id)
-    return clone(meter)
+    meter.scannedMeterNumber = number
+    meter.facilityId = input.facilityId
+    meter.facilityName = facility.name
+    meter.gpsLatitude = input.gpsLatitude
+    meter.gpsLongitude = input.gpsLongitude
+    meter.gpsAccuracy = input.gpsAccuracy
+    meter.installationAddress = input.installationAddress
+    meter.customerName = input.customerName
+    meter.customerPhone = input.customerPhone
+    const result = transition(id, 'PendingSecretaryConfirm', user, 'Field data completed and submitted')
+    notify('u-sec', 'Field data awaiting confirmation', `${user.fullName} completed meter ${meter.officialMeterNumber}. Confirm the work to continue the process.`, meter.id)
+    return result
   },
 
   async secretaryConfirm(id, userId) {

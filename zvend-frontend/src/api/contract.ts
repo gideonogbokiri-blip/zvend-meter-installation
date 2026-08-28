@@ -34,14 +34,22 @@ export interface CreateFacilityInput {
   active: boolean
 }
 
-export interface ScanNewInput {
+export interface AddToInventoryResult {
+  created: MeterInstallation[]
+  errors: { meterNumber: string; error: string }[]
+}
+
+export interface AddToInventoryInput {
+  meterNumbers: string[]
+}
+
+export interface ClaimMeterInput {
   scannedMeterNumber: string
   facilityId: string
   gpsLatitude: number
   gpsLongitude: number
   gpsAccuracy?: number
   installationAddress: string
-  fieldTechnicianName: string
   customerName: string
   customerPhone: string
 }
@@ -73,7 +81,10 @@ export interface ZvendApi {
   createFacility(input: CreateFacilityInput): Promise<Facility>
   listMeters(query: ListMetersQuery): Promise<MeterInstallation[]>
   getMeter(id: string): Promise<MeterInstallation>
-  submitScanNew(input: ScanNewInput, userId: string): Promise<MeterInstallation>
+  addToInventory(input: AddToInventoryInput, userId: string): Promise<AddToInventoryResult>
+  approveInventory(id: string, userId: string): Promise<MeterInstallation>
+  claimMeter(id: string, userId: string): Promise<MeterInstallation>
+  submitFieldInstall(id: string, input: ClaimMeterInput, userId: string): Promise<MeterInstallation>
   secretaryConfirm(id: string, userId: string): Promise<MeterInstallation>
   gmForward(id: string, userId: string): Promise<MeterInstallation>
   gmReject(id: string, input: RejectInput, userId: string): Promise<MeterInstallation>

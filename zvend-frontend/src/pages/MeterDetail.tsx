@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
 import { useMeter } from '../hooks/data'
@@ -16,9 +16,9 @@ import { formatDate } from '../lib/status'
 import type { Role } from '../types'
 
 const BACK_PATH: Record<Role, string> = {
-  Secretary: '/dashboard',
+  Secretary: '/inventory',
   FieldTechnician: '/field',
-  GM: '/reviews',
+  GM: '/inventory',
   MD: '/approvals',
   IT: '/it',
 }
@@ -65,6 +65,7 @@ export function MeterDetail() {
   const { user } = useAuth()
   const client = useQueryClient()
   const toast = useToast()
+  const navigate = useNavigate()
   const { data: meter, isLoading } = useMeter(id)
 
   const [busy, setBusy] = useState<string | null>(null)
@@ -130,6 +131,20 @@ export function MeterDetail() {
           : api.mdReject(meter.id, { reason }, user.id),
     )
     setRejectOpen(false)
+  }
+
+  const claimMeter = async () => {
+    setBusy('claim')
+    try {
+      const claimed = await api.claimMeter(meter.id, user.id)
+      invalidateMeter(client, claimed.id)
+      toast.success('Meter assigned', 'It is now yours. Complete the field steps to continue.')
+      navigate(`/field/install/${claimed.id}`)
+    } catch (e) {
+      toast.error('Could not claim', e instanceof Error ? e.message : 'This meter may already be taken.')
+    } finally {
+      setBusy(null)
+    }
   }
 
   const submitItComplete = async () => {
@@ -285,6 +300,59 @@ export function MeterDetail() {
           >
             Carry Out Task & Record Code
           </button>
+        </ActionPanel>
+      )}
+
+      {role === 'GM' && meter.status === 'Inventory' && (
+        <ActionPanel tone="neutral">
+          <p className="text-sm font-semibold text-slate-900">
+            This meter is in the inventory, waiting for your approval. Approve it so field technicians can install it.
+          </p>
+          <button
+            onClick={() =>
+              void (async () => {
+                await runAction('invapprove', 'Meter approved', () => api.approveInventory(meter.id, user.id))
+              })()
+            }
+            disabled={busy !== null}
+            className="btn-primary mt-3 w-full bg-cyan-600 shadow-cyan-600/20 hover:bg-cyan-700"
+          >
+            {busy === 'invapprove' ? 'Approving…' : 'Approve for Field Work'}
+          </button>
+        </ActionPanel>
+      )}
+
+      {role === 'GM' && meter.status === 'Approved' && (
+        <ActionPanel tone="neutral">
+          <p className="text-sm font-semibold text-slate-900">
+            This meter is approved and available for field technicians.
+          </p>
+        </ActionPanel>
+      )}
+
+      {role === 'FieldTechnician' && meter.status === 'Approved' && (
+        <ActionPanel tone="neutral">
+          <p className="text-sm font-semibold text-slate-900">
+            This meter is approved and waiting for a field technician. Claim it to install it at the site.
+          </p>
+          <button
+            onClick={() => void claimMeter()}
+            disabled={busy !== null}
+            className="btn-primary mt-3 w-full"
+          >
+            {busy === 'claim' ? 'Claiming…' : 'Claim & Start Installation'}
+          </button>
+        </ActionPanel>
+      )}
+
+      {role === 'FieldTechnician' && meter.status === 'Assigned' && meter.fieldTechnicianName === user.fullName && (
+        <ActionPanel tone="neutral">
+          <p className="text-sm font-semibold text-slate-900">
+            This meter is assigned to you. Continue the installation by completing the field steps.
+          </p>
+          <Link to={`/field/install/${meter.id}`} className="btn-primary mt-3 block w-full text-center">
+            Continue Installation
+          </Link>
         </ActionPanel>
       )}
 

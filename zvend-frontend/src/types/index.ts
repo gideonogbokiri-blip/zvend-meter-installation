@@ -2,6 +2,9 @@ export const ROLES = ['Secretary', 'FieldTechnician', 'GM', 'MD', 'IT'] as const
 export type Role = (typeof ROLES)[number]
 
 export const STATUSES = [
+  'Inventory',
+  'Approved',
+  'Assigned',
   'PendingSecretaryConfirm',
   'PendingGM',
   'PendingMD',

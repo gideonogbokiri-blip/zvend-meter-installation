@@ -6,7 +6,9 @@ import type {
   ChangePasswordInput,
   UpdateProfileInput,
   CreateFacilityInput,
-  ScanNewInput,
+  AddToInventoryInput,
+  AddToInventoryResult,
+  ClaimMeterInput,
   RejectInput,
   ItCompleteInput,
   ListMetersQuery,
@@ -100,12 +102,41 @@ export const clientApi: ZvendApi = {
     return data
   },
 
-  async submitScanNew(
-    input: ScanNewInput,
+  async addToInventory(
+    input: AddToInventoryInput,
+    _userId: string
+  ): Promise<AddToInventoryResult> {
+    const { data } = await http.post<AddToInventoryResult>(
+      '/api/meters/inventory',
+      input
+    )
+    return data
+  },
+
+  async approveInventory(
+    id: string,
     _userId: string
   ): Promise<MeterInstallation> {
     const { data } = await http.post<MeterInstallation>(
-      '/api/meters/scan',
+      `/api/meters/${id}/inventory-approve`
+    )
+    return data
+  },
+
+  async claimMeter(id: string, _userId: string): Promise<MeterInstallation> {
+    const { data } = await http.post<MeterInstallation>(
+      `/api/meters/${id}/claim`
+    )
+    return data
+  },
+
+  async submitFieldInstall(
+    id: string,
+    input: ClaimMeterInput,
+    _userId: string
+  ): Promise<MeterInstallation> {
+    const { data } = await http.post<MeterInstallation>(
+      `/api/meters/${id}/submit-field`,
       input
     )
     return data

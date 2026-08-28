@@ -10,7 +10,8 @@ import { Dashboard } from './pages/Dashboard'
 import { Facilities } from './pages/Facilities'
 import { MeterDetail } from './pages/MeterDetail'
 import { FieldHome } from './pages/FieldHome'
-import { FieldScanPage } from './pages/FieldScan'
+import { FieldInstallPage } from './pages/FieldInstall'
+import { InventoryPage } from './pages/InventoryPage'
 import { QueuePage } from './pages/QueuePage'
 import { Settings } from './pages/Settings'
 import { DailyRecords } from './pages/DailyRecords'
@@ -58,8 +59,12 @@ export default function App() {
                   <Route index element={<FieldHome />} />
                 </Route>
 
-                <Route path="scan/new" element={<RequireRole roles={['FieldTechnician']} />}>
-                  <Route index element={<FieldScanPage />} />
+                <Route path="field/install/:id" element={<RequireRole roles={['FieldTechnician']} />}>
+                  <Route index element={<FieldInstallPage />} />
+                </Route>
+
+                <Route path="inventory" element={<RequireRole roles={['Secretary', 'GM']} />}>
+                  <Route index element={<InventoryPage />} />
                 </Route>
 
                 <Route path="reviews" element={<RequireRole roles={['GM']} />}>

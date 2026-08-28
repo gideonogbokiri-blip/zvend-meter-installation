@@ -3,14 +3,14 @@ import { supabase } from '../lib/supabase.js'
 import { authMiddleware, requireRole } from '../middleware/auth.js'
 import { isValidMeterNumber, normalizeMeterNumber } from '../lib/helpers.js'
 import type { AppEnv } from '../env.js'
-import type { MeterStatus, Role } from '../types.js'
+import type { MeterInstallation, MeterStatus, Role } from '../types.js'
 
 const meters = new Hono<AppEnv>()
 
 interface DbMeter {
   id: string
   official_meter_number: string
-  facility_id: string
+  facility_id: string | null
   status: string
   scanned_meter_number: string | null
   gps_latitude: number | null
@@ -37,7 +37,7 @@ function dbMeterToApi(m: DbMeter) {
   return {
     id: m.id,
     officialMeterNumber: m.official_meter_number,
-    facilityId: m.facility_id,
+    facilityId: m.facility_id ?? '',
     facilityName: m.facilities?.name ?? '',
     status: m.status as MeterStatus,
     scannedMeterNumber: m.scanned_meter_number ?? undefined,
@@ -103,6 +103,14 @@ async function getRoleId(role: Role) {
   return data?.id
 }
 
+async function getRoleIds(role: Role) {
+  const { data } = await supabase
+    .from('users')
+    .select('id')
+    .eq('role', role)
+  return (data ?? []).map((u) => u.id as string)
+}
+
 // List meters with optional filters
 meters.get('/', authMiddleware, async (c) => {
   const status = c.req.query('status')
@@ -152,8 +160,188 @@ meters.get('/:id', authMiddleware, async (c) => {
   return c.json(dbMeterToApi(data as DbMeter))
 })
 
-// Submit new scan (FieldTechnician only)
-meters.post('/scan', authMiddleware, requireRole('FieldTechnician'), async (c) => {
+// Secretary adds meter numbers to inventory (batch)
+meters.post('/inventory', authMiddleware, requireRole('Secretary'), async (c) => {
+  const user = c.get('user')
+  const body = await c.req.json()
+  const { meterNumbers } = body as { meterNumbers?: string[] }
+
+  const raw = (meterNumbers ?? [])
+    .map((n) => normalizeMeterNumber(String(n)))
+    .filter(Boolean)
+
+  if (raw.length === 0) {
+    return c.json({ error: 'Enter at least one meter number' }, 400)
+  }
+
+  const created: DbMeter[] = []
+  const errors: { meterNumber: string; error: string }[] = []
+  const seen = new Set<string>()
+
+  for (const meterNum of raw) {
+    if (!isValidMeterNumber(meterNum)) {
+      errors.push({ meterNumber: meterNum, error: 'Invalid meter number. Must be 5810XXXXXXXX (11 digits)' })
+      continue
+    }
+    if (seen.has(meterNum)) {
+      errors.push({ meterNumber: meterNum, error: 'Duplicate number in batch' })
+      continue
+    }
+    seen.add(meterNum)
+
+    const { data: existing } = await supabase
+      .from('meter_installations')
+      .select('id')
+      .eq('official_meter_number', meterNum)
+      .single()
+
+    if (existing) {
+      errors.push({ meterNumber: meterNum, error: 'Meter number already registered' })
+      continue
+    }
+
+    const { data, error } = await supabase
+      .from('meter_installations')
+      .insert({
+        official_meter_number: meterNum,
+        facility_id: null,
+        status: 'Inventory',
+        created_by: user.id,
+      })
+      .select('*, facilities(name)')
+      .single()
+
+    if (error) {
+      errors.push({ meterNumber: meterNum, error: error.message })
+      continue
+    }
+    created.push(data as DbMeter)
+  }
+
+  if (created.length > 0) {
+    await addAuditEntry(
+      created[0].id,
+      user.id,
+      user.fullName,
+      user.role,
+      `Added ${created.length} meter number(s) to inventory`,
+      errors.length > 0 ? `Skipped: ${errors.map((e) => e.meterNumber).join(', ')}` : undefined
+    )
+  }
+
+  // Notify GM about inventory awaiting approval
+  const gmId = await getRoleId('GM')
+  if (gmId && created.length > 0) {
+    await createNotification(
+      gmId,
+      'New meters in inventory',
+      `${user.fullName} added ${created.length} meter number(s). Approve them so field technicians can start work.`
+    )
+  }
+
+  return c.json({
+    created: created.map(dbMeterToApi),
+    errors,
+  } satisfies { created: MeterInstallation[]; errors: { meterNumber: string; error: string }[] })
+})
+
+// GM approves a single inventory meter
+meters.post('/:id/inventory-approve', authMiddleware, requireRole('GM'), async (c) => {
+  const id = c.req.param('id')
+  const user = c.get('user')
+
+  const { data: meter, error: fetchError } = await supabase
+    .from('meter_installations')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (fetchError || !meter) {
+    return c.json({ error: 'Meter not found' }, 404)
+  }
+
+  if (meter.status !== 'Inventory') {
+    return c.json({ error: 'Meter is not in pending inventory' }, 400)
+  }
+
+  const { data, error } = await supabase
+    .from('meter_installations')
+    .update({ status: 'Approved' })
+    .eq('id', id)
+    .select('*, facilities(name)')
+    .single()
+
+  if (error) {
+    return c.json({ error: error.message }, 500)
+  }
+
+  await addAuditEntry(id, user.id, user.fullName, user.role, 'Approved meter from inventory')
+
+  // Notify all field technicians
+  const techIds = await getRoleIds('FieldTechnician')
+  for (const techId of techIds) {
+    await createNotification(
+      techId,
+      'Meter approved for work',
+      `Meter ${meter.official_meter_number} was approved by the GM. Open it to start installation.`,
+      id
+    )
+  }
+
+  return c.json(dbMeterToApi(data as DbMeter))
+})
+
+// Field technician claims an approved inventory meter
+meters.post('/:id/claim', authMiddleware, requireRole('FieldTechnician'), async (c) => {
+  const id = c.req.param('id')
+  const user = c.get('user')
+
+  const { data: meter, error: fetchError } = await supabase
+    .from('meter_installations')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (fetchError || !meter) {
+    return c.json({ error: 'Meter not found' }, 404)
+  }
+
+  if (meter.status !== 'Approved') {
+    return c.json({ error: 'Only approved inventory meters can be claimed' }, 400)
+  }
+
+  const { data, error } = await supabase
+    .from('meter_installations')
+    .update({
+      status: 'Assigned',
+      field_technician_name: user.fullName,
+    })
+    .eq('id', id)
+    .select('*, facilities(name)')
+    .single()
+
+  if (error) {
+    return c.json({ error: error.message }, 500)
+  }
+
+  await addAuditEntry(id, user.id, user.fullName, user.role, `Claimed inventory meter ${meter.official_meter_number}`)
+
+  const secretaryId = await getRoleId('Secretary')
+  if (secretaryId) {
+    await createNotification(
+      secretaryId,
+      'Meter claimed by field tech',
+      `${user.fullName} claimed meter ${meter.official_meter_number} and is doing the field work.`,
+      id
+    )
+  }
+
+  return c.json(dbMeterToApi(data as DbMeter))
+})
+
+// Field technician completes field data for an assigned meter
+meters.post('/:id/submit-field', authMiddleware, requireRole('FieldTechnician'), async (c) => {
+  const id = c.req.param('id')
   const user = c.get('user')
   const body = await c.req.json()
 
@@ -164,7 +352,6 @@ meters.post('/scan', authMiddleware, requireRole('FieldTechnician'), async (c) =
     gpsLongitude,
     gpsAccuracy,
     installationAddress,
-    fieldTechnicianName,
     customerName,
     customerPhone,
   } = body as {
@@ -174,15 +361,32 @@ meters.post('/scan', authMiddleware, requireRole('FieldTechnician'), async (c) =
     gpsLongitude: number
     gpsAccuracy?: number
     installationAddress: string
-    fieldTechnicianName: string
     customerName: string
     customerPhone: string
   }
 
+  const { data: meter, error: fetchError } = await supabase
+    .from('meter_installations')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (fetchError || !meter) {
+    return c.json({ error: 'Meter not found' }, 404)
+  }
+
+  if (meter.status !== 'Assigned') {
+    return c.json({ error: 'Meter is not assigned to a field technician' }, 400)
+  }
+
+  if (meter.field_technician_name !== user.fullName) {
+    return c.json({ error: 'This meter is assigned to another technician' }, 403)
+  }
+
   const meterNum = normalizeMeterNumber(scannedMeterNumber)
-  if (!isValidMeterNumber(meterNum)) {
+  if (!isValidMeterNumber(meterNum) || meterNum !== meter.official_meter_number) {
     return c.json(
-      { error: 'Invalid meter number. Must be 5810XXXXXXXX (11 digits)' },
+      { error: 'Scanned number does not match the assigned inventory meter' },
       400
     )
   }
@@ -191,21 +395,9 @@ meters.post('/scan', authMiddleware, requireRole('FieldTechnician'), async (c) =
     return c.json({ error: 'Missing required fields' }, 400)
   }
 
-  // Check for duplicate meter number
-  const { data: existing } = await supabase
-    .from('meter_installations')
-    .select('id')
-    .eq('official_meter_number', meterNum)
-    .single()
-
-  if (existing) {
-    return c.json({ error: 'Meter number already registered' }, 409)
-  }
-
   const { data, error } = await supabase
     .from('meter_installations')
-    .insert({
-      official_meter_number: meterNum,
+    .update({
       facility_id: facilityId,
       status: 'PendingSecretaryConfirm',
       scanned_meter_number: meterNum,
@@ -213,11 +405,10 @@ meters.post('/scan', authMiddleware, requireRole('FieldTechnician'), async (c) =
       gps_longitude: gpsLongitude,
       gps_accuracy: gpsAccuracy ?? null,
       installation_address: installationAddress,
-      field_technician_name: fieldTechnicianName,
       customer_name: customerName,
       customer_phone: customerPhone,
-      created_by: user.id,
     })
+    .eq('id', id)
     .select('*, facilities(name)')
     .single()
 
@@ -225,16 +416,16 @@ meters.post('/scan', authMiddleware, requireRole('FieldTechnician'), async (c) =
     return c.json({ error: error.message }, 500)
   }
 
-  await addAuditEntry(data.id, user.id, user.fullName, user.role, 'Meter scanned and submitted')
+  await addAuditEntry(id, user.id, user.fullName, user.role, 'Field data completed and submitted')
 
   // Notify Secretary
   const secretaryId = await getRoleId('Secretary')
   if (secretaryId) {
     await createNotification(
       secretaryId,
-      'New meter submission',
-      `${fieldTechnicianName} submitted meter ${meterNum} for review`,
-      data.id
+      'Field data awaiting confirmation',
+      `${user.fullName} completed meter ${meterNum}. Confirm the work to continue the process.`,
+      id
     )
   }
 
@@ -553,6 +744,25 @@ meters.post('/:id/it-complete', authMiddleware, requireRole('IT'), async (c) => 
       `Meter ${meter.official_meter_number} is complete. Codes: ${codesRecorded}`,
       id
     )
+  }
+
+  // Also notify the field technician by name (inventory workflow)
+  if (meter.field_technician_name) {
+    const { data: tech } = await supabase
+      .from('users')
+      .select('id')
+      .eq('full_name', meter.field_technician_name)
+      .eq('role', 'FieldTechnician')
+      .limit(1)
+      .single()
+    if (tech?.id && tech.id !== meter.created_by) {
+      await createNotification(
+        tech.id,
+        'Job completed',
+        `Meter ${meter.official_meter_number} is complete. Codes: ${codesRecorded}`,
+        id
+      )
+    }
   }
 
   return c.json(dbMeterToApi(data as DbMeter))

@@ -1,6 +1,9 @@
 import type { MeterStatus } from '../types'
 
 const FLOW: MeterStatus[] = [
+  'Inventory',
+  'Approved',
+  'Assigned',
   'PendingSecretaryConfirm',
   'PendingGM',
   'PendingMD',

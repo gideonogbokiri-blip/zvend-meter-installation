@@ -13,7 +13,7 @@ type Scope = 'active' | 'rejected' | 'archived'
 const MY_ACTION: Record<Role, MeterStatus[]> = {
   Secretary: ['PendingSecretaryConfirm', 'Rejected'],
   FieldTechnician: [],
-  GM: ['PendingGM'],
+  GM: ['Inventory', 'PendingGM'],
   MD: ['PendingMD'],
   IT: ['PendingIT'],
 }
