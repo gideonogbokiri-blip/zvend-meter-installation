@@ -8,15 +8,28 @@ const records = new Hono<AppEnv>()
 interface DbDailyRecord {
   id: string
   record_date: string
-  meters: unknown[] | null
+  meters: unknown
   created_by: string | null
   created_at: string
   updated_at: string
 }
 
+function parseMeters(raw: unknown): unknown[] {
+  if (Array.isArray(raw)) return raw
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
 async function attachCreatedByName(
   rows: DbDailyRecord[]
-): Promise<{ id: string; record_date: string; meters: unknown[] | null; created_by: string | null; created_at: string; updated_at: string; created_by_name: string | null }[]> {
+): Promise<{ id: string; record_date: string; meters: unknown[]; created_by: string | null; created_at: string; updated_at: string; created_by_name: string | null }[]> {
   const userIds = [...new Set(rows.map((r) => r.created_by).filter(Boolean))]
   let names: Record<string, string> = {}
   if (userIds.length > 0) {
@@ -29,7 +42,7 @@ async function attachCreatedByName(
   return rows.map((r) => ({
     id: r.id,
     record_date: r.record_date,
-    meters: r.meters ?? [],
+    meters: parseMeters(r.meters),
     created_by: r.created_by ?? null,
     created_at: r.created_at,
     updated_at: r.updated_at,
@@ -41,7 +54,7 @@ function dbRecordToApi(r: Awaited<ReturnType<typeof attachCreatedByName>>[number
   return {
     id: r.id,
     recordDate: r.record_date,
-    meters: r.meters as unknown[],
+    meters: r.meters,
     createdBy: r.created_by ?? undefined,
     createdByName: r.created_by_name ?? undefined,
     createdAt: r.created_at,
@@ -132,7 +145,7 @@ records.post('/', authMiddleware, requireRole('Secretary'), async (c) => {
   const { data, error } = await supabase
     .from('daily_records')
     .upsert(
-      { record_date: recordDate, meters: JSON.stringify(snapshot), created_by: user.id },
+      { record_date: recordDate, meters: snapshot, created_by: user.id },
       { onConflict: 'record_date' }
     )
     .select()
