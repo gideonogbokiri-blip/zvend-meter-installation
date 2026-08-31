@@ -109,7 +109,7 @@ export function InventoryPage() {
 
       {isSecretary && (
         <div className="animate-fade-in-up card space-y-4 p-5">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm font-bold text-slate-900">Add meter numbers</p>
             <button
               onClick={() => {
@@ -118,9 +118,9 @@ export function InventoryPage() {
                 else void start()
                 setScanning(true)
               }}
-              className="btn-secondary"
+              className="btn-secondary inline-flex w-full items-center justify-center gap-2 sm:w-auto sm:shrink-0"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 9V7.5A2.5 2.5 0 015.5 5H9m6 0h3.5A2.5 2.5 0 0121 7.5V9M3 15v1.5A2.5 2.5 0 005.5 19H9m6 0h3.5a2.5 2.5 0 002.5-2.5V15M12 9v6m-3-3h6" />
               </svg>
               {camScanning ? 'Stop camera' : 'Scan with camera'}
@@ -152,33 +152,48 @@ export function InventoryPage() {
                   </div>
                 )}
               </div>
-              <button onClick={() => setScanning(false)} className="btn-ghost mt-2">
+              <button
+                onClick={() => setScanning(false)}
+                className="btn-ghost mt-2 inline-flex w-full items-center justify-center sm:w-auto"
+              >
                 Done scanning
               </button>
             </div>
           )}
 
           {!scanning && (
-            <div>
+            <div className="flex flex-col gap-2">
               {!manualOpen && (
-                <button onClick={() => setManualOpen(true)} className="btn-ghost ring-1 ring-slate-300">
+                <button
+                  onClick={() => setManualOpen(true)}
+                  className="btn-ghost inline-flex w-full items-center justify-center gap-2 ring-1 ring-slate-300 sm:w-auto sm:self-start"
+                >
                   Can't scan? Type the numbers
                 </button>
               )}
               {manualOpen && (
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <input
                     value={manualInput}
                     onChange={(e) => setManualInput(e.target.value)}
                     placeholder="Type a meter number (5810XXXXXXXX)"
-                    className="input font-mono tracking-wider"
+                    className="input min-w-0 flex-1 font-mono tracking-wider"
+                    enterKeyHint="done"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addManual()
+                      }
+                    }}
                   />
-                  <button onClick={addManual} className="btn-primary shrink-0">
-                    Add
-                  </button>
-                  <button onClick={() => setManualOpen(false)} className="btn-secondary shrink-0">
-                    Done
-                  </button>
+                  <div className="flex gap-2 sm:shrink-0">
+                    <button onClick={addManual} className="btn-primary flex-1 justify-center sm:flex-none">
+                      Add
+                    </button>
+                    <button onClick={() => setManualOpen(false)} className="btn-secondary flex-1 justify-center sm:flex-none">
+                      Done
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
