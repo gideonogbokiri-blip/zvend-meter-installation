@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../store/auth'
@@ -9,6 +9,7 @@ import { ROLE_LABEL, formatDate } from '../lib/status'
 import { Avatar } from './Avatar'
 import { useTheme } from '../hooks/useTheme'
 import { THEMES } from './theme-context'
+import { playNotificationSound } from '../lib/notificationSound'
 
 const NAV: Record<Role, { to: string; label: string; icon: string }[]> = {
   Secretary: [
@@ -58,10 +59,49 @@ export function Layout() {
   const [themeOpen, setThemeOpen] = useState(false)
   const bellRef = useRef<HTMLDivElement>(null)
   const themeRef = useRef<HTMLDivElement>(null)
+  const prevUnreadRef = useRef<number | null>(null)
   const { theme, setTheme } = useTheme()
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const [showInstall, setShowInstall] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
+
+  useEffect(() => {
+    if (dismissed) return
+    const onBeforeInstall = (e: Event) => {
+      e.preventDefault()
+      setDeferredPrompt(e)
+      setShowInstall(true)
+    }
+    const onAppInstalled = () => {
+      setShowInstall(false)
+      setDeferredPrompt(null)
+    }
+    window.addEventListener('beforeinstallprompt', onBeforeInstall)
+    window.addEventListener('appinstalled', onAppInstalled)
+    if (window.matchMedia('(display-mode: standalone)').matches) setShowInstall(false)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstall)
+      window.removeEventListener('appinstalled', onAppInstalled)
+    }
+  }, [dismissed])
+
+  const handleInstall = useCallback(async () => {
+    if (!deferredPrompt) return
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+    if (outcome === 'accepted') setShowInstall(false)
+    setDeferredPrompt(null)
+  }, [deferredPrompt])
 
   const unread = (notifications ?? []).filter((n) => !n.read).length
   const nav = user ? NAV[user.role] : []
+
+  useEffect(() => {
+    if (notifications && prevUnreadRef.current !== null && unread > prevUnreadRef.current) {
+      playNotificationSound()
+    }
+    if (notifications) prevUnreadRef.current = unread
+  }, [unread, notifications])
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -226,6 +266,18 @@ export function Layout() {
           </nav>
         )}
       </header>
+
+      {showInstall && !dismissed && (
+        <div className="mx-auto max-w-6xl px-4 pt-3">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3">
+            <p className="text-sm font-semibold text-brand-800">Install Zvend for quick access from your home screen.</p>
+            <div className="flex shrink-0 gap-2">
+              <button onClick={() => setDismissed(true)} className="rounded-xl px-3 py-1.5 text-xs font-bold text-brand-600 hover:bg-brand-100">Later</button>
+              <button onClick={handleInstall} className="rounded-xl bg-brand-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-700">Install</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="mx-auto max-w-6xl px-4 py-6">
         <Outlet />

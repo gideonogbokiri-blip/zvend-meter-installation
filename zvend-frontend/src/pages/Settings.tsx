@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -33,6 +33,38 @@ export function Settings() {
   const toast = useToast()
   const [pwError, setPwError] = useState<string | null>(null)
   const [profileError, setProfileError] = useState<string | null>(null)
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const [isInstalled, setIsInstalled] = useState(false)
+
+
+  const handleInstall = useCallback(async () => {
+    if (!deferredPrompt) return
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+    if (outcome === 'accepted') {
+      setIsInstalled(true)
+      toast.success('App installed', 'You can now access Zvend from your home screen.')
+    }
+    setDeferredPrompt(null)
+  }, [deferredPrompt, toast])
+
+  useEffect(() => {
+    const onBeforeInstall = (e: Event) => {
+      e.preventDefault()
+      setDeferredPrompt(e)
+    }
+    const onAppInstalled = () => {
+      setIsInstalled(true)
+      setDeferredPrompt(null)
+    }
+    window.addEventListener('beforeinstallprompt', onBeforeInstall)
+    window.addEventListener('appinstalled', onAppInstalled)
+    if (window.matchMedia('(display-mode: standalone)').matches) setIsInstalled(true)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstall)
+      window.removeEventListener('appinstalled', onAppInstalled)
+    }
+  }, [])
 
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -95,6 +127,28 @@ export function Settings() {
             {user ? ROLE_LABEL[user.role] : ''}
           </span>
         </div>
+      </div>
+
+      <div className="card p-5">
+        <div>
+          <h2 className="font-bold text-slate-900">Install App</h2>
+          <p className="mt-0.5 text-sm text-slate-500">
+            Add Zvend to your home screen for quick access without opening the browser.
+          </p>
+        </div>
+        {isInstalled ? (
+          <p className="mt-3 text-sm font-medium text-green-700">App is already installed.</p>
+        ) : deferredPrompt ? (
+          <button onClick={handleInstall} className="btn-primary mt-3">
+            Install Zvend
+          </button>
+        ) : (
+          <div className="mt-3 space-y-2 text-sm text-slate-500">
+            <p><strong>Android / Chrome:</strong> Tap the menu (⋮) → "Install app" or "Add to Home screen".</p>
+            <p><strong>iPhone / Safari:</strong> Tap the share button (↑) → "Add to Home Screen".</p>
+            <p><strong>Windows / Mac:</strong> Click the install icon in the address bar, or use the browser menu → "Install Zvend".</p>
+          </div>
+        )}
       </div>
 
       <form onSubmit={profileForm.handleSubmit(onSaveProfile)} className="card space-y-4 p-5">
