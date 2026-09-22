@@ -7,6 +7,7 @@ import { useToast } from '../hooks/useToast'
 import { SkeletonTable } from '../components/Skeleton'
 import { EmptyState } from '../components/EmptyState'
 import { formatCode } from '../lib/status'
+import { useAuth } from '../store/auth'
 import type { RecordedMeter } from '../types'
 
 function todayStr() {
@@ -55,6 +56,8 @@ function RecordedMeterRow({ m }: { m: RecordedMeter }) {
 export function DailyRecords() {
   const toast = useToast()
   const client = useQueryClient()
+  const { user } = useAuth()
+  const canSave = user?.role === 'Secretary'
   const { data: records, isLoading } = useDailyRecords()
   const [date, setDate] = useState(todayStr())
   const [busy, setBusy] = useState(false)
@@ -81,27 +84,29 @@ export function DailyRecords() {
         </p>
       </div>
 
-      <div className="card space-y-4 p-5">
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="block">
-            <span className="label">Record date</span>
-            <input
-              type="date"
-              value={date}
-              max={todayStr()}
-              onChange={(e) => setDate(e.target.value)}
-              className="input"
-            />
-          </label>
-          <button onClick={() => void saveToday()} disabled={busy} className="btn-primary">
-            {busy ? 'Saving…' : `Save ${displayDate(date)} record`}
-          </button>
+      {canSave && (
+        <div className="card space-y-4 p-5">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="block">
+              <span className="label">Record date</span>
+              <input
+                type="date"
+                value={date}
+                max={todayStr()}
+                onChange={(e) => setDate(e.target.value)}
+                className="input"
+              />
+            </label>
+            <button onClick={() => void saveToday()} disabled={busy} className="btn-primary">
+              {busy ? 'Saving…' : `Save ${displayDate(date)} record`}
+            </button>
+          </div>
+          <p className="text-xs text-slate-400">
+            Saves a snapshot of all meters completed on this date: the meter number, customer, facility,
+            field technician and the activation / clear / tamper codes. Ready for future reference.
+          </p>
         </div>
-        <p className="text-xs text-slate-400">
-          Saves a snapshot of all meters completed on this date: the meter number, customer, facility,
-          field technician and the activation / clear / tamper codes. Ready for future reference.
-        </p>
-      </div>
+      )}
 
       <section>
         <h2 className="mb-3 text-xs font-bold tracking-widest text-slate-400 uppercase">Saved records</h2>

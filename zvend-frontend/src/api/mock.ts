@@ -28,6 +28,7 @@ const users: User[] = [
   { id: 'u-gm', fullName: 'Grace Alabi', role: 'GM', email: 'grace@zvend.com', phone: '0803 000 3333' },
   { id: 'u-md', fullName: 'Yusuf Bello', role: 'MD', email: 'yusuf@zvend.com', phone: '0804 000 4444' },
   { id: 'u-it', fullName: 'Chidi Eze', role: 'IT', email: 'chidi@zvend.com', phone: '0805 000 5555' },
+  { id: 'u-elivis', fullName: 'elivis asaba', role: 'FieldTechnician', email: 'elivis@zvend.com', phone: '0806 000 6666' },
 ]
 
 const facilities: Facility[] = [
