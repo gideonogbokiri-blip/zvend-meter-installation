@@ -232,9 +232,4 @@ export const clientApi: ZvendApi = {
     const { data } = await http.get<DailyRecord[]>('/api/records')
     return data
   },
-
-  async createDailyRecord(date?: string): Promise<DailyRecord> {
-    const { data } = await http.post<DailyRecord>('/api/records', { date })
-    return data
-  },
 }

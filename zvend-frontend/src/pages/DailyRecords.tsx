@@ -1,21 +1,8 @@
-import { useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
-import { api } from '../api'
 import { useDailyRecords } from '../hooks/data'
-import { invalidateDailyRecords } from '../hooks/data'
-import { useToast } from '../hooks/useToast'
 import { SkeletonTable } from '../components/Skeleton'
 import { EmptyState } from '../components/EmptyState'
 import { formatCode } from '../lib/status'
-import { useAuth } from '../store/auth'
 import type { RecordedMeter } from '../types'
-
-function todayStr() {
-  const d = new Date()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${d.getFullYear()}-${m}-${day}`
-}
 
 function displayDate(iso: string) {
   const d = new Date(`${iso}T00:00:00`)
@@ -54,59 +41,17 @@ function RecordedMeterRow({ m }: { m: RecordedMeter }) {
 }
 
 export function DailyRecords() {
-  const toast = useToast()
-  const client = useQueryClient()
-  const { user } = useAuth()
-  const canSave = user?.role === 'Secretary'
   const { data: records, isLoading } = useDailyRecords()
-  const [date, setDate] = useState(todayStr())
-  const [busy, setBusy] = useState(false)
-
-  const saveToday = async () => {
-    setBusy(true)
-    try {
-      await api.createDailyRecord(date)
-      invalidateDailyRecords(client)
-      toast.success('Record saved', `Daily record for ${displayDate(date)} saved.`)
-    } catch (e) {
-      toast.error('Save failed', e instanceof Error ? e.message : 'Please try again.')
-    } finally {
-      setBusy(false)
-    }
-  }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Daily Records</h1>
         <p className="mt-0.5 text-sm text-slate-500">
-          Save the list of meters installed each day so there is a permanent record for the future.
+          Every day's installed meters are recorded automatically — the meter number, customer, facility,
+          field technician and the activation / clear / tamper codes.
         </p>
       </div>
-
-      {canSave && (
-        <div className="card space-y-4 p-5">
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="block">
-              <span className="label">Record date</span>
-              <input
-                type="date"
-                value={date}
-                max={todayStr()}
-                onChange={(e) => setDate(e.target.value)}
-                className="input"
-              />
-            </label>
-            <button onClick={() => void saveToday()} disabled={busy} className="btn-primary">
-              {busy ? 'Saving…' : `Save ${displayDate(date)} record`}
-            </button>
-          </div>
-          <p className="text-xs text-slate-400">
-            Saves a snapshot of all meters completed on this date: the meter number, customer, facility,
-            field technician and the activation / clear / tamper codes. Ready for future reference.
-          </p>
-        </div>
-      )}
 
       <section>
         <h2 className="mb-3 text-xs font-bold tracking-widest text-slate-400 uppercase">Saved records</h2>
@@ -115,7 +60,7 @@ export function DailyRecords() {
         ) : !records || records.length === 0 ? (
           <EmptyState
             title="No daily records yet"
-            hint="Pick a date above and press Save to create the day's installation record."
+            hint="Daily records are saved automatically as meters are completed and appear here."
           />
         ) : (
           <div className="space-y-4">
@@ -126,7 +71,7 @@ export function DailyRecords() {
                     <p className="font-extrabold text-slate-900">{displayDate(r.recordDate)}</p>
                     <p className="text-xs text-slate-500">
                       {r.meters.length} meter{r.meters.length === 1 ? '' : 's'} installed · saved by{' '}
-                      {r.createdByName ?? 'Secretary'} · {formatCode(r.createdAt)}
+                      {r.createdByName ?? 'System'} · {formatCode(r.createdAt)}
                     </p>
                   </div>
                   <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700">

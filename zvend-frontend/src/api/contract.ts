@@ -96,5 +96,4 @@ export interface ZvendApi {
   listNotifications(userId: string): Promise<AppNotification[]>
   markNotificationRead(id: string): Promise<void>
   listDailyRecords(): Promise<DailyRecord[]>
-  createDailyRecord(date?: string): Promise<DailyRecord>
 }

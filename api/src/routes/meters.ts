@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { supabase } from '../lib/supabase.js'
 import { authMiddleware, requireRole } from '../middleware/auth.js'
 import { isValidMeterNumber, normalizeMeterNumber } from '../lib/helpers.js'
+import { refreshDailyRecord } from '../lib/dailyRecords.js'
 import type { AppEnv } from '../env.js'
 import type { MeterInstallation, MeterStatus, Role } from '../types.js'
 
@@ -735,6 +736,12 @@ meters.post('/:id/it-complete', authMiddleware, requireRole('IT'), async (c) => 
     `Job completed and closed. Codes recorded: ${codesRecorded}`,
     notes
   )
+
+  // Auto-save the daily record for the completion date
+  if (data.completed_at) {
+    const recordDate = data.completed_at.slice(0, 10)
+    await refreshDailyRecord(recordDate, user.id)
+  }
 
   // Notify the field technician who submitted the meter
   if (meter.created_by) {

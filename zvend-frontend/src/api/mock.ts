@@ -20,8 +20,6 @@ const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v))
 
 let mockSessionUserId = 'u-sec'
 
-const dailyRecords: DailyRecord[] = []
-
 const users: User[] = [
   { id: 'u-sec', fullName: 'Amara Okafor', role: 'Secretary', email: 'amara@zvend.com', phone: '0801 000 1111' },
   { id: 'u-tech', fullName: 'Tunde Bakare', role: 'FieldTechnician', email: 'tunde@zvend.com', phone: '0802 000 2222' },
@@ -537,20 +535,24 @@ export const api: ZvendApi = {
 
   async listDailyRecords() {
     await delay(100)
-    return clone(dailyRecords)
-  },
-
-  async createDailyRecord(date) {
-    await delay()
-    const recordDate = date ?? new Date().toISOString().slice(0, 10)
-    const snapshot = meters
-      .filter(
-        (m) =>
-          m.status === 'Completed' &&
-          m.completedAt &&
-          m.completedAt.slice(0, 10) === recordDate,
-      )
-      .map((m) => ({
+    const recordsByDate = new Map<string, DailyRecord>()
+    for (const m of meters) {
+      if (m.status !== 'Completed' || !m.completedAt) continue
+      const date = m.completedAt.slice(0, 10)
+      let record = recordsByDate.get(date)
+      if (!record) {
+        record = {
+          id: uid('r'),
+          recordDate: date,
+          meters: [],
+          createdBy: mockSessionUserId,
+          createdByName: findUser(mockSessionUserId).fullName,
+          createdAt: now(),
+          updatedAt: now(),
+        }
+        recordsByDate.set(date, record)
+      }
+      record.meters.push({
         id: m.id,
         official_meter_number: m.officialMeterNumber,
         facility_name: m.facilityName,
@@ -562,23 +564,8 @@ export const api: ZvendApi = {
         clear_code: m.clearCode,
         tamper_code: m.tamperCode,
         completed_at: m.completedAt,
-      }))
-    const existing = dailyRecords.find((r) => r.recordDate === recordDate)
-    if (existing) {
-      existing.meters = snapshot
-      existing.updatedAt = now()
-      return clone(existing)
+      })
     }
-    const record: DailyRecord = {
-      id: uid('r'),
-      recordDate,
-      meters: snapshot,
-      createdBy: mockSessionUserId,
-      createdByName: findUser(mockSessionUserId).fullName,
-      createdAt: now(),
-      updatedAt: now(),
-    }
-    dailyRecords.unshift(record)
-    return clone(record)
+    return clone([...recordsByDate.values()].sort((a, b) => a.recordDate < b.recordDate ? 1 : -1))
   },
 }

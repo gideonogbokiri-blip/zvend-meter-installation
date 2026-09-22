@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { supabase } from '../lib/supabase.js'
-import { authMiddleware, requireRole } from '../middleware/auth.js'
+import { authMiddleware } from '../middleware/auth.js'
+import { backfillDailyRecords, refreshDailyRecord } from '../lib/dailyRecords.js'
 import type { AppEnv } from '../env.js'
 
 const records = new Hono<AppEnv>()
@@ -62,8 +63,14 @@ function dbRecordToApi(r: Awaited<ReturnType<typeof attachCreatedByName>>[number
   }
 }
 
-// List all daily records
+// List all daily records (auto-saved — refreshes today's snapshot on read)
 records.get('/', authMiddleware, async (c) => {
+  const user = c.get('user')
+  const today = new Date().toISOString().slice(0, 10)
+
+  await backfillDailyRecords()
+  await refreshDailyRecord(today, user.id)
+
   const { data, error } = await supabase
     .from('daily_records')
     .select('*')
@@ -95,68 +102,7 @@ records.get('/:id', authMiddleware, async (c) => {
   return c.json(dbRecordToApi(rows[0]))
 })
 
-// Save/create a daily record (Secretary only)
-// Captures all Completed meters whose completed_at falls on that date.
-records.post('/', authMiddleware, requireRole('Secretary'), async (c) => {
-  const user = c.get('user')
-  const body = await c.req.json()
-  const { date } = body as { date?: string }
-
-  let recordDate: string
-  if (date) {
-    const parsed = new Date(`${date}T00:00:00`)
-    if (Number.isNaN(parsed.getTime())) {
-      return c.json({ error: 'Invalid date. Use YYYY-MM-DD' }, 400)
-    }
-    recordDate = date
-  } else {
-    const now = new Date()
-    recordDate = now.toISOString().slice(0, 10)
-  }
-
-  const dayStart = `${recordDate}T00:00:00.000Z`
-  const dayEnd = new Date(new Date(`${recordDate}T00:00:00.000Z`).getTime() + 86_400_000).toISOString()
-
-  const { data: meters, error: metersError } = await supabase
-    .from('meter_installations')
-    .select('*, facilities(name)')
-    .eq('status', 'Completed')
-    .gte('completed_at', dayStart)
-    .lt('completed_at', dayEnd)
-
-  if (metersError) {
-    return c.json({ error: metersError.message }, 500)
-  }
-
-  const snapshot = (meters ?? []).map((m) => ({
-    id: m.id,
-    official_meter_number: m.official_meter_number,
-    facility_name: m.facilities?.name ?? '',
-    customer_name: m.customer_name,
-    customer_phone: m.customer_phone,
-    installation_address: m.installation_address,
-    field_technician_name: m.field_technician_name,
-    activation_code: m.activation_code,
-    clear_code: m.clear_code,
-    tamper_code: m.tamper_code,
-    completed_at: m.completed_at,
-  }))
-
-  const { data, error } = await supabase
-    .from('daily_records')
-    .upsert(
-      { record_date: recordDate, meters: snapshot, created_by: user.id },
-      { onConflict: 'record_date' }
-    )
-    .select()
-    .single()
-
-  if (error) {
-    return c.json({ error: error.message }, 500)
-  }
-
-  const rows = await attachCreatedByName([data as DbDailyRecord])
-  return c.json(dbRecordToApi(rows[0]))
-})
+// Daily records are auto-saved: refreshed when a meter is completed and
+// backfilled on read, so no manual save endpoint is needed.
 
 export default records

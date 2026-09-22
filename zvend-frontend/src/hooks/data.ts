@@ -55,10 +55,6 @@ export function useDailyRecords() {
   })
 }
 
-export function invalidateDailyRecords(client: ReturnType<typeof useQueryClient>) {
-  client.invalidateQueries({ queryKey: qk.dailyRecords })
-}
-
 export function invalidateMeter(client: ReturnType<typeof useQueryClient>, id?: string) {
   client.invalidateQueries({ queryKey: ['meters'] })
   client.invalidateQueries({ queryKey: ['notifications'] })
