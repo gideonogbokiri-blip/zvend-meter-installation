@@ -110,7 +110,7 @@ export default function App() {
                   <Route index element={<Settings />} />
                 </Route>
 
-                <Route path="records" element={<RequireRole roles={['Secretary', 'MD', 'FieldTechnician']} />}>
+                <Route path="records" element={<RequireRole roles={['Secretary', 'MD', 'FieldTechnician', 'IT']} />}>
                   <Route index element={<DailyRecords />} />
                 </Route>
 
